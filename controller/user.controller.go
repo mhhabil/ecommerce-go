@@ -4,13 +4,14 @@ import (
 	"ecommerce/entity"
 	"ecommerce/helper"
 	"ecommerce/service"
+	"net/http"
 
 	"github.com/gin-gonic/gin"
 )
 
 type UserController interface {
-	Login(ctx *gin.Context) (entity.LoginResponse, error)
-	Save(ctx *gin.Context) error
+	Login(ctx *gin.Context) (entity.LoginResponse, int, error)
+	Save(ctx *gin.Context) (int, error)
 }
 
 type controller struct {
@@ -23,21 +24,26 @@ func New(service service.UserService) UserController {
 	}
 }
 
-func (c *controller) Login(ctx *gin.Context) (entity.LoginResponse, error) {
+func (c *controller) Login(ctx *gin.Context) (entity.LoginResponse, int, error) {
 	var request entity.LoginRequest
 	var response entity.LoginResponse
 	err := ctx.ShouldBindJSON(&request)
 	if err != nil {
-		return entity.LoginResponse{}, err
+		return entity.LoginResponse{}, http.StatusBadRequest, err
 	}
 	user, err := c.service.FindOne(request.Username)
 	if err != nil {
-		return entity.LoginResponse{}, err
+		return entity.LoginResponse{}, http.StatusNotFound, err
+	}
+
+	errPassword := helper.ValidatePassword(user.Password, request.Password)
+	if errPassword != nil {
+		return entity.LoginResponse{}, http.StatusBadRequest, errPassword
 	}
 
 	token, err := helper.GenerateToken(request)
 	if err != nil {
-		return entity.LoginResponse{}, err
+		return entity.LoginResponse{}, http.StatusInternalServerError, err
 	}
 
 	response = entity.LoginResponse{
@@ -48,18 +54,18 @@ func (c *controller) Login(ctx *gin.Context) (entity.LoginResponse, error) {
 			AccessToken: token,
 		},
 	}
-	return response, nil
+	return response, 200, nil
 }
 
-func (c *controller) Save(ctx *gin.Context) error {
+func (c *controller) Save(ctx *gin.Context) (int, error) {
 	var user entity.User
 	err := ctx.ShouldBindJSON(&user)
 	if err != nil {
-		return err
+		return http.StatusBadRequest, err
 	}
-	_, errdb := c.service.Save(user)
+	_, code, errdb := c.service.Save(user)
 	if errdb != nil {
-		return errdb
+		return code, errdb
 	}
-	return nil
+	return code, nil
 }
