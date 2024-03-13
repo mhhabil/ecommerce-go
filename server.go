@@ -43,6 +43,16 @@ func main() {
 				})
 			}
 		})
+		authRoutes.POST("/login", func(ctx *gin.Context) {
+			res, err := userController.Login(ctx)
+			if err != nil {
+				ctx.JSON(http.StatusBadRequest, gin.H{
+					"error": err.Error(),
+				})
+			} else {
+				ctx.JSON(http.StatusOK, res)
+			}
+		})
 	}
 
 	server.Run(":8000")

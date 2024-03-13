@@ -10,7 +10,7 @@ import (
 
 type UserService interface {
 	Save(entity.User) (entity.User, error)
-	FindOne() entity.User
+	FindOne(string) (*entity.User, error)
 }
 
 type userService struct {
@@ -31,13 +31,19 @@ func (service *userService) Save(user entity.User) (entity.User, error) {
 		return user, err
 	}
 	user.Username = html.EscapeString(strings.TrimSpace(user.Username))
-	_, errdb := service.db.Exec("insert into users(username,password,email) values ($1,$2,$3)", user.Username, pwd, user.Email)
+	_, errdb := service.db.Exec("insert into users(username,password,name) values ($1,$2,$3)", user.Username, pwd, user.Name)
 	if errdb != nil {
 		return user, errdb
 	}
 	return user, nil
 }
 
-func (service *userService) FindOne() entity.User {
-	return service.users[0]
+func (service *userService) FindOne(username string) (*entity.User, error) {
+	var user entity.User
+	err := service.db.QueryRow("select username, name from users where username=$1", username).Scan(&user.Username, &user.Name)
+	if err != nil {
+		return &entity.User{}, err
+	} else {
+		return &user, nil
+	}
 }
