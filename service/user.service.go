@@ -5,12 +5,15 @@ import (
 	"ecommerce/entity"
 	"ecommerce/helper"
 	"html"
+	"net/http"
 	"strings"
+
+	"github.com/lib/pq"
 )
 
 type UserService interface {
-	Save(entity.User) (entity.User, error)
-	FindOne() entity.User
+	Save(entity.User) (entity.User, int, error)
+	FindOne(string) (*entity.User, error)
 }
 
 type userService struct {
@@ -24,20 +27,29 @@ func New(db *sql.DB) UserService {
 	}
 }
 
-func (service *userService) Save(user entity.User) (entity.User, error) {
+func (service *userService) Save(user entity.User) (entity.User, int, error) {
 
 	pwd, err := helper.HashAndSalt(user.Password)
 	if err != nil {
-		return user, err
+		return user, http.StatusInternalServerError, err
 	}
 	user.Username = html.EscapeString(strings.TrimSpace(user.Username))
-	_, errdb := service.db.Exec("insert into users(username,password,email) values ($1,$2,$3)", user.Username, pwd, user.Email)
-	if errdb != nil {
-		return user, errdb
+	_, errdb := service.db.Exec("insert into users(username,password,name) values ($1,$2,$3)", user.Username, pwd, user.Name)
+	if errdb, ok := errdb.(*pq.Error); ok {
+		if errdb.Code.Name() == "unique_violation" {
+			return user, http.StatusConflict, errdb
+		}
+		return user, http.StatusInternalServerError, errdb
 	}
-	return user, nil
+	return user, 201, nil
 }
 
-func (service *userService) FindOne() entity.User {
-	return service.users[0]
+func (service *userService) FindOne(username string) (*entity.User, error) {
+	var user entity.User
+	err := service.db.QueryRow("select username, name, password from users where username=$1", username).Scan(&user.Username, &user.Name, &user.Password)
+	if err != nil {
+		return &entity.User{}, err
+	} else {
+		return &user, nil
+	}
 }

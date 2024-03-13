@@ -3,6 +3,7 @@ package main
 import (
 	"ecommerce/controller"
 	"ecommerce/database"
+	"ecommerce/middleware"
 	"ecommerce/service"
 	"net/http"
 
@@ -29,18 +30,38 @@ func main() {
 		})
 	})
 
-	authRoutes := server.Group("/auth")
+	routes := server.Group("/v1")
+	productRoutes := routes.Group("/product")
+	productRoutes.Use(middleware.AuthMiddleware())
+	{
+		productRoutes.POST("/", func(ctx *gin.Context) {
+			ctx.JSON(http.StatusOK, gin.H{
+				"message": "OK",
+			})
+		})
+	}
+	authRoutes := routes.Group("/user")
 	{
 		authRoutes.POST("/register", func(ctx *gin.Context) {
-			err := userController.Save(ctx)
+			code, err := userController.Save(ctx)
 			if err != nil {
-				ctx.JSON(http.StatusBadRequest, gin.H{
+				ctx.JSON(code, gin.H{
 					"error": err.Error(),
 				})
 			} else {
-				ctx.JSON(http.StatusOK, gin.H{
+				ctx.JSON(code, gin.H{
 					"message": "OK",
 				})
+			}
+		})
+		authRoutes.POST("/login", func(ctx *gin.Context) {
+			res, code, err := userController.Login(ctx)
+			if err != nil {
+				ctx.JSON(code, gin.H{
+					"error": err.Error(),
+				})
+			} else {
+				ctx.JSON(code, res)
 			}
 		})
 	}
