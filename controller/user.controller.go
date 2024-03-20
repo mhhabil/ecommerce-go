@@ -11,27 +11,27 @@ import (
 
 type UserController interface {
 	Login(ctx *gin.Context) (entity.LoginResponse, int, error)
-	Save(ctx *gin.Context) (int, error)
+	SaveUser(ctx *gin.Context) (int, error)
 }
 
-type controller struct {
+type userController struct {
 	service service.UserService
 }
 
-func New(service service.UserService) UserController {
-	return &controller{
+func NewUserController(service service.UserService) UserController {
+	return &userController{
 		service: service,
 	}
 }
 
-func (c *controller) Login(ctx *gin.Context) (entity.LoginResponse, int, error) {
+func (c *userController) Login(ctx *gin.Context) (entity.LoginResponse, int, error) {
 	var request entity.LoginRequest
 	var response entity.LoginResponse
 	err := ctx.ShouldBindJSON(&request)
 	if err != nil {
 		return entity.LoginResponse{}, http.StatusBadRequest, err
 	}
-	user, err := c.service.FindOne(request.Username)
+	user, err := c.service.FindUserByUsername(request.Username)
 	if err != nil {
 		return entity.LoginResponse{}, http.StatusNotFound, err
 	}
@@ -57,13 +57,13 @@ func (c *controller) Login(ctx *gin.Context) (entity.LoginResponse, int, error) 
 	return response, 200, nil
 }
 
-func (c *controller) Save(ctx *gin.Context) (int, error) {
+func (c *userController) SaveUser(ctx *gin.Context) (int, error) {
 	var user entity.User
 	err := ctx.ShouldBindJSON(&user)
 	if err != nil {
 		return http.StatusBadRequest, err
 	}
-	_, code, errdb := c.service.Save(user)
+	_, code, errdb := c.service.SaveUser(user)
 	if errdb != nil {
 		return code, errdb
 	}

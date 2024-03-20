@@ -12,8 +12,8 @@ import (
 )
 
 type UserService interface {
-	Save(entity.User) (entity.User, int, error)
-	FindOne(string) (*entity.User, error)
+	SaveUser(entity.User) (entity.User, int, error)
+	FindUserByUsername(string) (*entity.User, error)
 }
 
 type userService struct {
@@ -21,13 +21,13 @@ type userService struct {
 	users []entity.User
 }
 
-func New(db *sql.DB) UserService {
+func NewUserService(db *sql.DB) UserService {
 	return &userService{
 		db: db,
 	}
 }
 
-func (service *userService) Save(user entity.User) (entity.User, int, error) {
+func (service *userService) SaveUser(user entity.User) (entity.User, int, error) {
 
 	pwd, err := helper.HashAndSalt(user.Password)
 	if err != nil {
@@ -41,10 +41,10 @@ func (service *userService) Save(user entity.User) (entity.User, int, error) {
 		}
 		return user, http.StatusInternalServerError, errdb
 	}
-	return user, 201, nil
+	return user, http.StatusCreated, nil
 }
 
-func (service *userService) FindOne(username string) (*entity.User, error) {
+func (service *userService) FindUserByUsername(username string) (*entity.User, error) {
 	var user entity.User
 	err := service.db.QueryRow("select username, name, password from users where username=$1", username).Scan(&user.Username, &user.Name, &user.Password)
 	if err != nil {

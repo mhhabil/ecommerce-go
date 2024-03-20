@@ -16,9 +16,14 @@ func main() {
 		panic(err)
 	}
 	var (
-		userService    service.UserService       = service.New(db)
-		userController controller.UserController = controller.New(
+		userService    service.UserService       = service.NewUserService(db)
+		userController controller.UserController = controller.NewUserController(
 			userService,
+		)
+
+		productService    service.ProductService       = service.NewProductService(db)
+		productController controller.ProductController = controller.NewProductController(
+			productService,
 		)
 	)
 	server := gin.New()
@@ -35,15 +40,34 @@ func main() {
 	productRoutes.Use(middleware.AuthMiddleware())
 	{
 		productRoutes.POST("/", func(ctx *gin.Context) {
-			ctx.JSON(http.StatusOK, gin.H{
-				"message": "OK",
-			})
+			code, err := productController.SaveProduct(ctx)
+			if err != nil {
+				ctx.JSON(code, gin.H{
+					"error": err.Error(),
+				})
+			} else {
+				ctx.JSON(code, gin.H{
+					"message": "OK",
+				})
+			}
+		})
+		productRoutes.PATCH("/:id", func(ctx *gin.Context) {
+			code, err := productController.UpdateProduct(ctx)
+			if err != nil {
+				ctx.JSON(code, gin.H{
+					"error": err.Error(),
+				})
+			} else {
+				ctx.JSON(code, gin.H{
+					"message": "OK",
+				})
+			}
 		})
 	}
 	authRoutes := routes.Group("/user")
 	{
 		authRoutes.POST("/register", func(ctx *gin.Context) {
-			code, err := userController.Save(ctx)
+			code, err := userController.SaveUser(ctx)
 			if err != nil {
 				ctx.JSON(code, gin.H{
 					"error": err.Error(),
